@@ -4,7 +4,7 @@ library(arules)
 library(data.table)
 library(dplyr)
 
-data = fread('N:/[03] 단기 작업/동아리 7월 pj 산림/신규주제 분석/2022년/카드데이터/제천시 구매내역 데이터.csv', encoding='UTF-8')
+data = fread('E:/[03] 단기 작업/동아리 7월 pj 산림/신규주제 분석/2022년/카드데이터/제천시 구매내역 데이터.csv', encoding='UTF-8')
 
 data$v1 = factor(data$v1); data$v2 = factor(data$v2); data$v3 = factor(data$v3)
 data$gb3 = factor(data$gb3); data$gb2 = factor(data$gb2); data$sex_ccd = factor(data$sex_ccd)
@@ -272,6 +272,10 @@ df %>% filter(gb3 == '취미오락') %>% select(gb2) %>% table()
 ##########################################
 ############ 계층적 군집분석 #############
 library(cluster)
+library(stringr)
+library(data.table)
+library(dplyr)
+# library(bit64) # 구매액 데이터가 int64가 필요함., fread문제.
 
 #Euclidean : 두 점 사이의 거리를 구할 때 가장 많이 쓰는 방식으로, 식은 다음과 같습니다.
 #Manhattan : 두 점 사이의 절대적 거리를 이용한 거리 계산 방식으로 다음과 같습니다.
@@ -286,16 +290,80 @@ library(cluster)
 #Median : 중앙연결법으로, 군집간의 거리를 군집의 모든 샘플의 중앙값으로 정의하는 것입니다.
 #Centroid : 중심연결법으로, 두 군집간의 거리가 두 군집의 중심간 거리로 정의됩니다. 여기서, s,t 는 각 군집의 중심점을 나타냅니다.
 
-df_distance <- daisy(df.type2, metric = c("gower"))
+
+setwd('E:/[03] 단기 작업/동아리 7월 pj 산림/신규주제 분석/2022년/카드데이터')
+df.type3 = fread('NATIVE(2018.1_2022.4).csv', encoding = 'UTF-8')
+
+df.type3$year = substr(df.type3$ta_ym,1,4)
+df.type3$month = factor(substr(df.type3$ta_ym,5,6), levels = c('01','02','03','04','05','06','07','08','09','10','11','12'))
+
+# 램 딸려서 파일로 저장하고 작업중단.
+df.type.2021 = df.type3 %>% filter((df.type3$year == '2021') & (df.type3$gb3 == '여행')) %>% select(-c('ta_ym','year'))
+fwrite(df.type.2021, '21년 여행 카테고리 소비내역.csv'); rm(df.type.2021)
+df.type.2020 = df.type3 %>% filter((df.type3$year == '2020') & (df.type3$gb3 == '여행')) %>% select(-c('ta_ym','year'))
+fwrite(df.type.2020, '20년 여행 카테고리 소비내역.csv'); rm(df.type.2020)
+df.type.2019 = df.type3 %>% filter((df.type3$year == '2019') & (df.type3$gb3 == '여행')) %>% select(-c('ta_ym','year'))
+fwrite(df.type.2019, '19년 여행 카테고리 소비내역.csv'); rm(df.type.2019)
+df.type.2018 = df.type3 %>% filter((df.type3$year == '2018') & (df.type3$gb3 == '여행')) %>% select(-c('ta_ym','year'))
+fwrite(df.type.2018, '18년 여행 카테고리 소비내역.csv'); rm(df.type.2018)
+rm(df.type3)
+
+
+# 램 문제때문에 아래 내역은 하나씩 불러오기 진행후 진행할것. 위 작업도 램 20기가 이상이어야 수월히 동작함.
+# 파이썬으로 넘어가.
+
+
+
+temp.df = fread('21년 여행 카테고리 소비내역.csv', encoding = 'UTF-8')
+
+temp.df$v1 = factor(temp.df$v1); temp.df$v2 = factor(temp.df$v2); temp.df$v3 = factor(temp.df$v3)
+temp.df$gb3 = factor(temp.df$gb3); temp.df$gb2 = factor(temp.df$gb2); temp.df$sex_ccd = factor(temp.df$sex_ccd)
+temp.df$daw_ccd_r = factor(temp.df$daw_ccd_r); temp.df$apv_ts_dl_tm_r = factor(temp.df$apv_ts_dl_tm_r)
+temp.df$apv_ts_dl_tm_r = factor(temp.df$apv_ts_dl_tm_r)
+temp.df$cln_age_r = factor(temp.df$cln_age_r); temp.df$month = factor(temp.df$month);
+temp.df$vlm = temp.df$vlm / 10000
+
+temp.df2 = temp.df %>% select(c(-'gb3',-'vlm',-'usec')) # gb3은 여행으로 통일. 수치형은 x
+#library(caret)
+#dummyVars()
+
+
+gower_distance <- daisy(head(temp.df2,1000), metric = c("gower"))
 # 무친 개념이라 실행이 불가능하다. Error: cannot allocate vector of size 175.2 Gb 에러니 최소한 차원을 줄여야 할듯.
-class(df_distance)
+class(gower_distance)
+
+divisive_clust <- diana(as.matrix(gower_distance), 
+                        diss = TRUE, keep.diss = TRUE)
+plot(divisive_clust, main = "Divisive")
+
+# 여기에서는 일반적으로 사용되는 Complete Linkages 활용합니다. 
+agg_clust_c <- hclust(gower_distance, method = "complete")
+plot(agg_clust_c, main = "Agglomerative, complete linkages")
 
 
-h.cluster <- hclust(df_distance, method = "complete")
-plot(h.cluster, main = "Agglomerative, complete linkages")
+
 
 # https://rpubs.com/Evan_Jung/hierarchical_clustering / 범주형 클러스터링 알고리즘.
 # 아니 그냥 이해못함/ ㅇㅁㅇ
+# kmean 방법
+
+
+# knode 방법을 활용해보자
+# 이론 : https://www.analyticsvidhya.com/blog/2021/06/kmodes-clustering-algorithm-for-categorical-data/
+# r 코드 : https://www.rdocumentation.org/packages/klaR/versions/0.6-15/topics/kmodes
+# 파이썬 코드 : https://data-newbie.tistory.com/739
+
+library(klaR)
+## run algorithm on x:
+# 그룹수 어케정함??
+(cl <- kmodes(temp.df2, 2))
+
+## and visualize with some jitter:
+plot(jitter(temp.df2), col = cl$cluster)
+points(cl$modes, col = 1:5, pch = 8)
+
+# kproto
+# 수치0범주 통합 https://www.rdocumentation.org/packages/clustMixType/versions/0.2-15/topics/kproto
 
 
 
