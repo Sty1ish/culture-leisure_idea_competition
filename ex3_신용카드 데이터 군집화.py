@@ -417,7 +417,7 @@ df.groupby('Segment').agg(
 # 수정해서 k = 8 i5-7300hq 돌린결과, 소요시간 8시간..앵간하면 16코어로 돌리는게 좋을듯.
 
 # Fit the cluster
-kprototype = KPrototypes(n_jobs = -1, n_clusters = 8, init = 'Huang', random_state = 0)
+kprototype = KPrototypes(n_jobs = -1, n_clusters = 8, init = 'Huang', verbose = 1)
 kprototype.fit_predict(dfMatrix, categorical = catColumnsPos)
 
 # Cluster centorid
@@ -492,3 +492,7 @@ df['Cluster Labels'] = kprototype.labels_
 # save cluster
 df.to_csv('2021_8group_K_prototype.csv')
 
+
+#%%
+# 시각화 : https://antonsruberts.github.io/kproto-audience/
+#Preprocessing numerical
